@@ -1,7 +1,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { Message, MessageRole, Attachment, GroundingMetadata } from "../types";
-import { COOKIE_AUTH_PLACEHOLDER, OAUTH_AUTH_PLACEHOLDER } from "../constants";
+import { COOKIE_AUTH_PLACEHOLDER } from "../constants";
 import { logger } from "./loggerService";
 
 interface StreamParams {
@@ -13,22 +13,30 @@ interface StreamParams {
   apiKey?: string;
   baseUrl?: string;
   cookie?: string;
-  accessToken?: string;
   customHeaders?: string;
   signal?: AbortSignal;
   onStream: (text: string, metadata?: GroundingMetadata) => void;
 }
 
 // Helper to construct headers and client options
-const getClientConfig = (apiKey?: string, baseUrl?: string, cookie?: string, accessToken?: string, customHeadersStr?: string) => {
+const getClientConfig = (apiKey?: string, baseUrl?: string, cookie?: string, customHeadersStr?: string) => {
   const headers: Record<string, string> = {};
   
-  if (cookie) {
-    headers['Cookie'] = cookie;
+  // Smart Proxy Logic for Cookies
+  // If user provides a cookie but NO BaseURL, we assume they are on Vercel (or compatible)
+  // and want to use the internal proxy to bypass CORS.
+  let finalBaseUrl = baseUrl;
+  if (cookie && !finalBaseUrl) {
+      // Determine if we are in a browser environment
+      if (typeof window !== 'undefined') {
+          // Use relative path to trigger the Vercel function
+          finalBaseUrl = `${window.location.origin}/api/proxy`;
+          logger.info("Auto-configured internal proxy for Cookie usage", { finalBaseUrl });
+      }
   }
 
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
+  if (cookie) {
+    headers['Cookie'] = cookie;
   }
 
   if (customHeadersStr) {
@@ -42,15 +50,15 @@ const getClientConfig = (apiKey?: string, baseUrl?: string, cookie?: string, acc
   }
 
   // Logic to determine strict API Key requirement of SDK
-  // If we have an access token or cookie, we can use a placeholder key because the Headers will authorize the request.
-  const finalApiKey = apiKey || process.env.API_KEY || (accessToken ? OAUTH_AUTH_PLACEHOLDER : (cookie ? COOKIE_AUTH_PLACEHOLDER : ""));
+  // If we have a cookie, we can use a placeholder key because the Headers (Cookie) will authorize the request.
+  const finalApiKey = apiKey || process.env.API_KEY || (cookie ? COOKIE_AUTH_PLACEHOLDER : "");
   
   if (!finalApiKey) {
-    throw new Error("未配置认证信息。请在设置中登录 Google 或配置 API Key。");
+    throw new Error("未配置认证信息。请在设置中配置 API Key 或 Cookie。");
   }
 
   const clientOptions: any = { apiKey: finalApiKey };
-  if (baseUrl) clientOptions.baseUrl = baseUrl;
+  if (finalBaseUrl) clientOptions.baseUrl = finalBaseUrl;
 
   // The SDK uses `requestOptions` in method calls to pass headers
   const requestOptions = {
@@ -61,16 +69,13 @@ const getClientConfig = (apiKey?: string, baseUrl?: string, cookie?: string, acc
   return { client: new GoogleGenAI(clientOptions), requestOptions };
 };
 
-export const checkGeminiConnectivity = async (apiKey: string, baseUrl?: string, cookie?: string, accessToken?: string, model?: string): Promise<boolean> => {
+export const checkGeminiConnectivity = async (apiKey: string, baseUrl?: string, cookie?: string, model?: string): Promise<boolean> => {
   try {
-    // If specific auth method is provided but empty, skip check or return false
-    // But here we pass all params, the logic is handled inside getClientConfig
-    
-    const { client, requestOptions } = getClientConfig(apiKey, baseUrl, cookie, accessToken);
+    const { client, requestOptions } = getClientConfig(apiKey, baseUrl, cookie);
     // Use the selected model for checking, default to flash if not specified
     const targetModel = model || 'gemini-2.5-flash';
     
-    logger.info(`Checking connectivity for model: ${targetModel} with auth params present.`);
+    logger.info(`Checking connectivity for model: ${targetModel} with auth params.`);
 
     await client.models.generateContent({
       model: targetModel,
@@ -101,7 +106,6 @@ export const streamGeminiResponse = async ({
   apiKey,
   baseUrl,
   cookie,
-  accessToken,
   customHeaders,
   signal,
   onStream
@@ -110,7 +114,7 @@ export const streamGeminiResponse = async ({
   logger.info(`Starting generation`, { model, useSearch, attachmentsCount: attachments.length });
 
   try {
-    const { client, requestOptions } = getClientConfig(apiKey, baseUrl, cookie, accessToken, customHeaders);
+    const { client, requestOptions } = getClientConfig(apiKey, baseUrl, cookie, customHeaders);
 
     const historyParts = history
       .filter(msg => !msg.isError && msg.role !== MessageRole.System) 
@@ -190,7 +194,7 @@ export const streamGeminiResponse = async ({
     }
     
     if (errorMessage.includes("401") || errorMessage.includes("UNAUTHENTICATED")) {
-        throw new Error("认证失败 (401)。Access Token 或 API Key 可能已过期/无效，请在设置中重新登录。");
+        throw new Error("认证失败 (401)。API Key 或 Cookie 可能已失效，请检查设置。");
     }
 
     try {
@@ -205,7 +209,7 @@ export const streamGeminiResponse = async ({
                     throw new Error("配额已耗尽 (429)。免费版 API 调用过于频繁，建议切换至 Gemini 2.5 Flash 模型。");
                 }
                  if (jsonPart.error.code === 401) {
-                    throw new Error("认证失败 (401)。请重新登录或检查 API Key。");
+                    throw new Error("认证失败 (401)。请检查 API Key 或 Cookie。");
                 }
                 errorMessage = `${jsonPart.error.message} (${jsonPart.error.code})`;
             }

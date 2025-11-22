@@ -10,14 +10,9 @@ export const STORAGE_KEYS = {
   SETTINGS: 'app_settings_v4',
 };
 
-// Default Google OAuth Configuration (Can be overridden in settings)
-export const DEFAULT_GOOGLE_CLIENT_ID = ""; 
-
 export const DEFAULT_SETTINGS = {
   geminiApiKey: '',
   geminiCookie: '',
-  accessToken: '',
-  googleClientId: '',
   model: MODELS.GEMINI_FLASH,
   baseUrl: '',
   
@@ -28,4 +23,3 @@ export const DEFAULT_SETTINGS = {
 };
 
 export const COOKIE_AUTH_PLACEHOLDER = 'COOKIE_AUTH_ENABLED';
-export const OAUTH_AUTH_PLACEHOLDER = 'OAUTH_AUTH_ENABLED';

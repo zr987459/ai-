@@ -66,29 +66,6 @@ const App: React.FC = () => {
         } catch (e) { console.error("Error loading history", e); }
     }
 
-    // Handle OAuth Callback (Google Login)
-    const hash = window.location.hash;
-    if (hash && hash.includes('access_token=')) {
-        try {
-            const params = new URLSearchParams(hash.substring(1));
-            const token = params.get('access_token');
-            if (token) {
-                setSettings(prev => {
-                    const newSettings = { ...prev, accessToken: token };
-                    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
-                    return newSettings;
-                });
-                // Clean URL
-                window.history.replaceState(null, '', window.location.pathname);
-                setTimeout(() => setToast({ message: "Google 登录成功！Access Token 已保存", type: 'info' }), 500);
-                logger.info("User logged in via Google OAuth");
-            }
-        } catch (e) {
-            console.error("Error parsing OAuth token", e);
-            logger.error("OAuth Token Parse Error", e);
-        }
-    }
-    
     logger.info("App Initialized", { userAgent: navigator.userAgent });
     setIsInitialized(true);
   }, []);
@@ -215,8 +192,8 @@ const App: React.FC = () => {
     if (isLoading) return;
     
     // Check auth
-    if (!settings.geminiApiKey && !settings.geminiCookie && !settings.accessToken) {
-        showToast("请先在设置中登录或配置 API Key", "error");
+    if (!settings.geminiApiKey && !settings.geminiCookie) {
+        showToast("请先在设置中配置 API Key 或 Cookie", "error");
         setShowSettings(true);
         logger.warn("Attempted to send message without auth");
         return;
@@ -257,7 +234,6 @@ const App: React.FC = () => {
            apiKey: settings.geminiApiKey,
            baseUrl: settings.baseUrl,
            cookie: settings.geminiCookie,
-           accessToken: settings.accessToken,
            customHeaders: settings.customHeaders,
            signal: abortController.signal,
            onStream: (text, metadata) => {
