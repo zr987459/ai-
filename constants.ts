@@ -9,9 +9,13 @@ export const STORAGE_KEYS = {
   SETTINGS: 'app_settings_v4',
 };
 
+// Google OAuth Configuration
+export const GOOGLE_CLIENT_ID = "547392155908-4kv6u2k3Ww4f1p3c5e7r8t9u0.apps.googleusercontent.com";
+
 export const DEFAULT_SETTINGS = {
   geminiApiKey: '',
   geminiCookie: '',
+  accessToken: '',
   model: MODELS.GEMINI_FLASH,
   baseUrl: '',
   
@@ -22,3 +26,4 @@ export const DEFAULT_SETTINGS = {
 };
 
 export const COOKIE_AUTH_PLACEHOLDER = 'COOKIE_AUTH_ENABLED';
+export const OAUTH_AUTH_PLACEHOLDER = 'OAUTH_AUTH_ENABLED';

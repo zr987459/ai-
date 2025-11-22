@@ -125,7 +125,7 @@ const InputArea: React.FC<Props> = ({ onSend, onStop, isLoading, enableTTS, onTo
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      Array.from(e.target.files).forEach(file => {
+      Array.from(e.target.files).forEach((file: File) => {
           const reader = new FileReader();
           reader.onload = (ev) => {
             if (ev.target?.result) {
@@ -155,7 +155,7 @@ const InputArea: React.FC<Props> = ({ onSend, onStop, isLoading, enableTTS, onTo
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 w-full">
+    <div className="max-w-4xl mx-auto px-2 md:px-4 w-full">
       {/* Attachments Preview */}
       {attachments.length > 0 && (
         <div className="flex gap-2 mb-3 overflow-x-auto pb-2 pl-1 scrollbar-thin scrollbar-thumb-gray-700">
@@ -164,11 +164,11 @@ const InputArea: React.FC<Props> = ({ onSend, onStop, isLoading, enableTTS, onTo
                     {att.type === 'image' ? (
                         <img 
                             src={`data:${att.mimeType};base64,${att.data}`} 
-                            className="h-16 w-16 object-cover rounded-xl border border-white/10 shadow-lg" 
+                            className="h-14 w-14 md:h-16 md:w-16 object-cover rounded-xl border border-white/10 shadow-lg" 
                             alt="preview" 
                         />
                     ) : (
-                        <div className="h-16 w-16 bg-[#1e293b] rounded-xl border border-white/10 shadow-lg flex flex-col items-center justify-center p-1">
+                        <div className="h-14 w-14 md:h-16 md:w-16 bg-[#1e293b] rounded-xl border border-white/10 shadow-lg flex flex-col items-center justify-center p-1">
                              <div className="text-xs font-bold text-gray-400 uppercase truncate max-w-full px-1">
                                 {att.name?.split('.').pop() || 'FILE'}
                              </div>
@@ -188,15 +188,15 @@ const InputArea: React.FC<Props> = ({ onSend, onStop, isLoading, enableTTS, onTo
         </div>
       )}
 
-      <div className="relative flex items-end gap-2 bg-[#0f172a]/80 border border-white/10 backdrop-blur-xl rounded-3xl p-2 shadow-2xl ring-1 ring-white/5">
+      <div className="relative flex items-end gap-1 md:gap-2 bg-[#0f172a]/80 border border-white/10 backdrop-blur-xl rounded-2xl md:rounded-3xl p-1.5 md:p-2 shadow-2xl ring-1 ring-white/5">
         {/* Left Actions */}
-        <div className="flex pb-1.5 pl-1.5 gap-1">
+        <div className="flex pb-1 pl-1 gap-0.5 md:gap-1">
             <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                className="p-1.5 md:p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
                 title="上传文件 (图片/视频/音频/PDF/压缩包等)"
             >
-                <Paperclip size={20} />
+                <Paperclip size={20} className="w-5 h-5 md:w-5 md:h-5" />
             </button>
             <input 
                 type="file" 
@@ -208,10 +208,10 @@ const InputArea: React.FC<Props> = ({ onSend, onStop, isLoading, enableTTS, onTo
             
              <button 
                 onClick={() => setUseSearch(!useSearch)}
-                className={`p-2 rounded-full transition-all flex items-center gap-1 ${useSearch ? 'text-blue-400 bg-blue-500/10 shadow-[0_0_10px_rgba(59,130,246,0.2)]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                className={`p-1.5 md:p-2 rounded-full transition-all flex items-center gap-1 ${useSearch ? 'text-blue-400 bg-blue-500/10 shadow-[0_0_10px_rgba(59,130,246,0.2)]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
                 title={useSearch ? "联网搜索已开启" : "开启联网搜索"}
             >
-                <Globe size={20} />
+                <Globe size={20} className="w-5 h-5 md:w-5 md:h-5" />
                 {useSearch && <span className="text-[10px] font-bold hidden sm:inline-block">Search</span>}
             </button>
         </div>
@@ -222,19 +222,19 @@ const InputArea: React.FC<Props> = ({ onSend, onStop, isLoading, enableTTS, onTo
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isListening ? "正在聆听..." : (useSearch ? "输入问题 (联网搜索已开启)..." : "输入消息...")}
-          className="flex-1 bg-transparent border-none outline-none text-gray-200 placeholder-gray-500 resize-none py-3 px-2 min-h-[48px] max-h-[160px] scrollbar-thin leading-relaxed"
+          placeholder={isListening ? "正在聆听..." : (useSearch ? "输入问题 (联网搜索)..." : "输入消息...")}
+          className="flex-1 bg-transparent border-none outline-none text-gray-200 placeholder-gray-500 resize-none py-2 md:py-3 px-2 min-h-[40px] md:min-h-[48px] max-h-[160px] scrollbar-thin leading-relaxed text-sm md:text-base"
           rows={1}
         />
 
         {/* Right Actions */}
-        <div className="flex pb-1.5 gap-2 pr-1.5">
+        <div className="flex pb-1 gap-1 md:gap-2 pr-1">
             {/* Voice Input Toggle */}
             <div className="relative">
                 <button
                     onClick={toggleListening}
                     disabled={!isSpeechSupported}
-                    className={`p-2 rounded-full transition-all ${
+                    className={`p-1.5 md:p-2 rounded-full transition-all ${
                         !isSpeechSupported ? 'text-gray-600 cursor-not-allowed' :
                         permissionError ? 'text-red-500 bg-red-500/10' :
                         isListening ? 'text-red-400 bg-red-500/10 animate-pulse shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 
@@ -246,34 +246,34 @@ const InputArea: React.FC<Props> = ({ onSend, onStop, isLoading, enableTTS, onTo
                         isListening ? "点击停止录音" : "点击开始语音输入"
                     }
                 >
-                    {isListening ? <MicOff size={20} /> : permissionError ? <AlertCircle size={20} /> : <Mic size={20} />}
+                    {isListening ? <MicOff size={20} className="w-5 h-5 md:w-5 md:h-5" /> : permissionError ? <AlertCircle size={20} className="w-5 h-5 md:w-5 md:h-5" /> : <Mic size={20} className="w-5 h-5 md:w-5 md:h-5" />}
                 </button>
             </div>
 
             {/* TTS Toggle */}
             <button
                 onClick={onToggleTTS}
-                className={`p-2 rounded-full transition-all ${enableTTS ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                className={`p-1.5 md:p-2 rounded-full transition-all ${enableTTS ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
                 title={enableTTS ? "自动朗读已开启" : "开启自动朗读"}
             >
-                {enableTTS ? <Volume2 size={20} /> : <VolumeX size={20} />}
+                {enableTTS ? <Volume2 size={20} className="w-5 h-5 md:w-5 md:h-5" /> : <VolumeX size={20} className="w-5 h-5 md:w-5 md:h-5" />}
             </button>
 
             {/* Send / Stop */}
             {isLoading ? (
                 <button 
                     onClick={onStop}
-                    className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-full transition-all animate-pulse shadow-lg shadow-red-900/30"
+                    className="p-1.5 md:p-2 bg-red-600 hover:bg-red-500 text-white rounded-full transition-all animate-pulse shadow-lg shadow-red-900/30"
                 >
-                    <StopCircle size={20} />
+                    <StopCircle size={20} className="w-5 h-5 md:w-5 md:h-5" />
                 </button>
             ) : (
                 <button 
                     onClick={handleSend}
                     disabled={!text.trim() && attachments.length === 0}
-                    className="p-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 text-white rounded-full transition-all shadow-lg shadow-blue-900/20"
+                    className="p-1.5 md:p-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 text-white rounded-full transition-all shadow-lg shadow-blue-900/20"
                 >
-                    <Send size={20} />
+                    <Send size={20} className="w-5 h-5 md:w-5 md:h-5" />
                 </button>
             )}
         </div>

@@ -1,6 +1,8 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Message, MessageRole, Attachment, GroundingMetadata } from "../types";
-import { COOKIE_AUTH_PLACEHOLDER } from "../constants";
+import { COOKIE_AUTH_PLACEHOLDER, OAUTH_AUTH_PLACEHOLDER } from "../constants";
+import { logger } from "./loggerService";
 
 interface StreamParams {
   model: string;
@@ -11,19 +13,22 @@ interface StreamParams {
   apiKey?: string;
   baseUrl?: string;
   cookie?: string;
+  accessToken?: string;
   customHeaders?: string;
   signal?: AbortSignal;
   onStream: (text: string, metadata?: GroundingMetadata) => void;
 }
 
 // Helper to construct headers and client options
-const getClientConfig = (apiKey?: string, baseUrl?: string, cookie?: string, customHeadersStr?: string) => {
+const getClientConfig = (apiKey?: string, baseUrl?: string, cookie?: string, accessToken?: string, customHeadersStr?: string) => {
   const headers: Record<string, string> = {};
   
   if (cookie) {
     headers['Cookie'] = cookie;
-    // Often required when using cookies directly against certain endpoints or proxies
-    // headers['x-goog-api-client'] = 'genai-js/0.1.0'; 
+  }
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
   if (customHeadersStr) {
@@ -32,15 +37,16 @@ const getClientConfig = (apiKey?: string, baseUrl?: string, cookie?: string, cus
       Object.assign(headers, parsed);
     } catch (e) {
       console.warn("Failed to parse custom headers", e);
+      logger.warn("Failed to parse custom headers", e);
     }
   }
 
-  // Use provided key, fallback to env, or use placeholder if cookie exists
-  // The SDK requires *some* apiKey string to initialize, even if the backend relies on the Cookie.
-  const finalApiKey = apiKey || process.env.API_KEY || (cookie ? COOKIE_AUTH_PLACEHOLDER : "");
+  // Logic to determine strict API Key requirement of SDK
+  // If we have an access token or cookie, we can use a placeholder key because the Headers will authorize the request.
+  const finalApiKey = apiKey || process.env.API_KEY || (accessToken ? OAUTH_AUTH_PLACEHOLDER : (cookie ? COOKIE_AUTH_PLACEHOLDER : ""));
   
   if (!finalApiKey) {
-    throw new Error("未配置 API Key 或 Cookie。请在设置中配置。");
+    throw new Error("未配置认证信息。请在设置中登录 Google 或配置 API Key。");
   }
 
   const clientOptions: any = { apiKey: finalApiKey };
@@ -55,12 +61,14 @@ const getClientConfig = (apiKey?: string, baseUrl?: string, cookie?: string, cus
   return { client: new GoogleGenAI(clientOptions), requestOptions };
 };
 
-export const checkGeminiConnectivity = async (apiKey: string, baseUrl?: string, cookie?: string, model?: string): Promise<boolean> => {
+export const checkGeminiConnectivity = async (apiKey: string, baseUrl?: string, cookie?: string, accessToken?: string, model?: string): Promise<boolean> => {
   try {
-    const { client, requestOptions } = getClientConfig(apiKey, baseUrl, cookie);
+    const { client, requestOptions } = getClientConfig(apiKey, baseUrl, cookie, accessToken);
     // Use the selected model for checking, default to flash if not specified
     const targetModel = model || 'gemini-2.5-flash';
     
+    logger.info(`Checking connectivity for model: ${targetModel}`);
+
     await client.models.generateContent({
       model: targetModel,
       contents: 'Ping',
@@ -69,11 +77,13 @@ export const checkGeminiConnectivity = async (apiKey: string, baseUrl?: string, 
       }
     }, {
         ...requestOptions,
-        timeout: 15000 // Slightly longer timeout for Pro models
+        timeout: 15000 
     });
+    logger.info("Connectivity check passed");
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Connectivity check failed:", error);
+    logger.error("Connectivity check failed", error);
     return false;
   }
 };
@@ -87,13 +97,16 @@ export const streamGeminiResponse = async ({
   apiKey,
   baseUrl,
   cookie,
+  accessToken,
   customHeaders,
   signal,
   onStream
 }: StreamParams) => {
   
+  logger.info(`Starting generation`, { model, useSearch, attachmentsCount: attachments.length });
+
   try {
-    const { client, requestOptions } = getClientConfig(apiKey, baseUrl, cookie, customHeaders);
+    const { client, requestOptions } = getClientConfig(apiKey, baseUrl, cookie, accessToken, customHeaders);
 
     const historyParts = history
       .filter(msg => !msg.isError && msg.role !== MessageRole.System) 
@@ -155,29 +168,47 @@ export const streamGeminiResponse = async ({
 
       onStream(fullText, groundingMetadata);
     }
+    logger.info("Generation completed successfully");
   } catch (error: any) {
-    if (signal?.aborted) return;
+    if (signal?.aborted) {
+        logger.info("Generation aborted by user");
+        return;
+    }
 
     console.error("Gemini API Error:", error);
+    logger.error("Gemini API Error", error);
     
     let errorMessage = error.message || "未知错误";
     
+    // Enhanced error parsing for logging and UI
     if (errorMessage.includes("429") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
         throw new Error("配额已耗尽 (429)。请尝试在设置中切换模型为 Gemini 2.5 Flash，或者稍后重试。");
+    }
+    
+    if (errorMessage.includes("401") || errorMessage.includes("UNAUTHENTICATED")) {
+        throw new Error("认证失败 (401)。Access Token 或 API Key 可能已过期/无效，请在设置中重新登录。");
     }
 
     try {
         const openBrace = errorMessage.indexOf('{');
         if (openBrace !== -1) {
             const jsonPart = JSON.parse(errorMessage.substring(openBrace));
+            // Log detailed JSON error
+            logger.error("Parsed API Error JSON", jsonPart);
+
             if (jsonPart.error) {
                 if (jsonPart.error.code === 429 || jsonPart.error.status === "RESOURCE_EXHAUSTED") {
                     throw new Error("配额已耗尽 (429)。免费版 API 调用过于频繁，建议切换至 Gemini 2.5 Flash 模型。");
                 }
+                 if (jsonPart.error.code === 401) {
+                    throw new Error("认证失败 (401)。请重新登录或检查 API Key。");
+                }
                 errorMessage = `${jsonPart.error.message} (${jsonPart.error.code})`;
             }
         }
-    } catch (e) { }
+    } catch (e) { 
+        logger.warn("Failed to parse error message JSON", e);
+    }
 
     throw new Error(errorMessage);
   }

@@ -38,7 +38,8 @@ export interface Message {
 export interface AppSettings {
   // Gemini & General
   geminiApiKey: string;
-  geminiCookie: string; // Google AI Studio Cookie / Headers
+  geminiCookie: string; // Google AI Studio Cookie
+  accessToken: string;  // Google OAuth Access Token
   model: string;
   baseUrl: string;
   
