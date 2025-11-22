@@ -172,6 +172,10 @@ const App: React.FC = () => {
                 newMessage: text,
                 attachments,
                 useSearch,
+                apiKey: settings.geminiApiKey,
+                baseUrl: settings.baseUrl,
+                cookie: settings.geminiCookie,
+                customHeaders: settings.customHeaders,
                 signal: controller.signal,
                 onStream
             });
@@ -180,7 +184,7 @@ const App: React.FC = () => {
                  streamDoubaoResponse({
                     prompt: text,
                     attachments,
-                    sessionId: settings.doubaoSessionId,
+                    cookie: settings.doubaoCookie,
                     signal: controller.signal,
                     onStream,
                     onDone: resolve,

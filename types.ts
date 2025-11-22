@@ -38,11 +38,18 @@ export interface Message {
 export type AppTab = 'gemini' | 'doubao';
 
 export interface AppSettings {
-  doubaoSessionId: string;
+  // Gemini
+  geminiApiKey: string;
+  geminiCookie: string;
+  model: string;
+  baseUrl: string;
+  
+  // Doubao
+  doubaoCookie: string;
+  
+  // General
   textSize: 'small' | 'normal' | 'large';
   enableTTS: boolean;
   ttsSpeed: number;
-  baseUrl: string;
   customHeaders: string;
-  model: string;
 }

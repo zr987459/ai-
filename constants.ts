@@ -7,16 +7,20 @@ export const MODELS = {
 export const STORAGE_KEYS = {
   GEMINI_HISTORY: 'gemini_chat_history_v2',
   DOUBAO_HISTORY: 'doubao_chat_history_v2',
-  SETTINGS: 'app_settings_v2',
+  SETTINGS: 'app_settings_v2_1', // Incremented version
   ACTIVE_TAB: 'app_active_tab',
 };
 
 export const DEFAULT_SETTINGS = {
-  doubaoSessionId: '',
+  geminiApiKey: '',
+  geminiCookie: '',
+  model: MODELS.GEMINI_PRO,
+  baseUrl: '',
+  
+  doubaoCookie: '',
+  
   textSize: 'normal' as const,
   enableTTS: false,
   ttsSpeed: 1.2,
-  baseUrl: '',
   customHeaders: '',
-  model: MODELS.GEMINI_PRO,
 };
