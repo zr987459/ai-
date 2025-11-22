@@ -35,19 +35,14 @@ export interface Message {
   groundingMetadata?: GroundingMetadata;
 }
 
-export type AppTab = 'gemini' | 'doubao';
-
 export interface AppSettings {
-  // Gemini
+  // Gemini & General
   geminiApiKey: string;
-  geminiCookie: string;
+  geminiCookie: string; // Google AI Studio Cookie / Headers
   model: string;
   baseUrl: string;
   
-  // Doubao
-  doubaoCookie: string;
-  
-  // General
+  // UI Prefs
   textSize: 'small' | 'normal' | 'large';
   enableTTS: boolean;
   ttsSpeed: number;

@@ -5,22 +5,20 @@ export const MODELS = {
 };
 
 export const STORAGE_KEYS = {
-  GEMINI_HISTORY: 'gemini_chat_history_v2',
-  DOUBAO_HISTORY: 'doubao_chat_history_v2',
-  SETTINGS: 'app_settings_v2_1', // Incremented version
-  ACTIVE_TAB: 'app_active_tab',
+  GEMINI_HISTORY: 'gemini_chat_history_v4',
+  SETTINGS: 'app_settings_v4',
 };
 
 export const DEFAULT_SETTINGS = {
   geminiApiKey: '',
   geminiCookie: '',
-  model: MODELS.GEMINI_PRO,
+  model: MODELS.GEMINI_FLASH,
   baseUrl: '',
-  
-  doubaoCookie: '',
   
   textSize: 'normal' as const,
   enableTTS: false,
   ttsSpeed: 1.2,
   customHeaders: '',
 };
+
+export const COOKIE_AUTH_PLACEHOLDER = 'COOKIE_AUTH_ENABLED';

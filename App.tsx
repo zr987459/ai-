@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, MessageSquare, Trash2, Settings, Maximize, Minimize } from 'lucide-react';
-import { AppTab, AppSettings, Message, MessageRole, Attachment } from './types';
+import { Sparkles, Trash2, Settings, Maximize, Minimize } from 'lucide-react';
+import { AppSettings, Message, MessageRole, Attachment } from './types';
 import { STORAGE_KEYS, DEFAULT_SETTINGS, MODELS } from './constants';
 import { streamGeminiResponse } from './services/geminiService';
-import { streamDoubaoResponse } from './services/doubaoService';
 import MessageBubble from './components/MessageBubble';
 import InputArea from './components/InputArea';
 import SettingsModal from './components/SettingsModal';
 
 const App: React.FC = () => {
   // --- State ---
-  const [activeTab, setActiveTab] = useState<AppTab>('gemini');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -30,23 +28,17 @@ const App: React.FC = () => {
       if (savedSettings) {
         setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) });
       }
-
-      const savedTab = localStorage.getItem(STORAGE_KEYS.ACTIVE_TAB);
-      if (savedTab === 'gemini' || savedTab === 'doubao') {
-        setActiveTab(savedTab);
-      }
     } catch (e) {
-      console.error("Failed to load initialization data", e);
+      console.error("Failed to load settings", e);
     } finally {
       setIsInitialized(true);
     }
   }, []);
 
-  // 2. Load Messages when Tab Changes
+  // 2. Load Messages
   useEffect(() => {
     if (!isInitialized) return;
-    const key = activeTab === 'gemini' ? STORAGE_KEYS.GEMINI_HISTORY : STORAGE_KEYS.DOUBAO_HISTORY;
-    const savedMsgs = localStorage.getItem(key);
+    const savedMsgs = localStorage.getItem(STORAGE_KEYS.GEMINI_HISTORY);
     if (savedMsgs) {
       try {
         setMessages(JSON.parse(savedMsgs));
@@ -54,7 +46,7 @@ const App: React.FC = () => {
     } else {
       setMessages([]);
     }
-  }, [activeTab, isInitialized]);
+  }, [isInitialized]);
 
   // 3. Auto-scroll
   useEffect(() => {
@@ -63,17 +55,10 @@ const App: React.FC = () => {
 
   // --- Handlers ---
 
-  const handleTabChange = (tab: AppTab) => {
-    if (isLoading) return;
-    setActiveTab(tab);
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, tab);
-  };
-
   const handleClearHistory = () => {
     if (confirm("确定要清空当前的聊天记录吗？")) {
       setMessages([]);
-      const key = activeTab === 'gemini' ? STORAGE_KEYS.GEMINI_HISTORY : STORAGE_KEYS.DOUBAO_HISTORY;
-      localStorage.removeItem(key);
+      localStorage.removeItem(STORAGE_KEYS.GEMINI_HISTORY);
     }
   };
 
@@ -83,19 +68,16 @@ const App: React.FC = () => {
   };
 
   const saveMessagesToStorage = (msgs: Message[]) => {
-    const key = activeTab === 'gemini' ? STORAGE_KEYS.GEMINI_HISTORY : STORAGE_KEYS.DOUBAO_HISTORY;
-    localStorage.setItem(key, JSON.stringify(msgs));
+    localStorage.setItem(STORAGE_KEYS.GEMINI_HISTORY, JSON.stringify(msgs));
   };
 
   const speakText = (text: string) => {
     if (!settings.enableTTS) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    // Attempt to select a Chinese voice
     const voices = window.speechSynthesis.getVoices();
     const zhVoice = voices.find(v => v.lang.includes('zh'));
     if (zhVoice) utterance.voice = zhVoice;
-    
     utterance.rate = settings.ttsSpeed;
     window.speechSynthesis.speak(utterance);
   };
@@ -165,33 +147,19 @@ const App: React.FC = () => {
     };
 
     try {
-        if (activeTab === 'gemini') {
-            await streamGeminiResponse({
-                model: settings.model || MODELS.GEMINI_PRO,
-                history: newMessages,
-                newMessage: text,
-                attachments,
-                useSearch,
-                apiKey: settings.geminiApiKey,
-                baseUrl: settings.baseUrl,
-                cookie: settings.geminiCookie,
-                customHeaders: settings.customHeaders,
-                signal: controller.signal,
-                onStream
-            });
-        } else {
-            await new Promise<void>((resolve, reject) => {
-                 streamDoubaoResponse({
-                    prompt: text,
-                    attachments,
-                    cookie: settings.doubaoCookie,
-                    signal: controller.signal,
-                    onStream,
-                    onDone: resolve,
-                    onError: reject
-                 });
-            });
-        }
+        await streamGeminiResponse({
+            model: settings.model || MODELS.GEMINI_PRO,
+            history: newMessages,
+            newMessage: text,
+            attachments,
+            useSearch,
+            apiKey: settings.geminiApiKey,
+            baseUrl: settings.baseUrl,
+            cookie: settings.geminiCookie,
+            customHeaders: settings.customHeaders,
+            signal: controller.signal,
+            onStream
+        });
 
         // Finished
         setMessages(current => {
@@ -246,25 +214,13 @@ const App: React.FC = () => {
     <div className="flex flex-col h-screen overflow-hidden bg-[#020617] text-slate-200 font-sans selection:bg-blue-500/30">
       {/* Header */}
       <header className="flex-shrink-0 h-14 border-b border-white/5 bg-[#020617]/60 backdrop-blur-md flex items-center justify-between px-4 z-20 sticky top-0">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/10">
             <Sparkles className="text-white" size={18} />
           </div>
-          
-          <div className="flex bg-white/5 rounded-lg p-1 border border-white/5">
-            <button 
-                onClick={() => handleTabChange('gemini')}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${activeTab === 'gemini' ? 'bg-blue-600 text-white shadow-sm ring-1 ring-white/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-            >
-                <Sparkles size={12} /> Gemini
-            </button>
-            <button 
-                onClick={() => handleTabChange('doubao')}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${activeTab === 'doubao' ? 'bg-blue-500 text-white shadow-sm ring-1 ring-white/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-            >
-                <MessageSquare size={12} /> 豆包
-            </button>
-          </div>
+          <h1 className="text-lg font-bold text-white tracking-tight">
+            Gemini AI
+          </h1>
         </div>
 
         <div className="flex items-center gap-2">
@@ -284,16 +240,14 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-y-auto relative scrollbar-thin scrollbar-thumb-gray-700/50 scrollbar-track-transparent">
         {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center p-4 text-center animate-fade-in">
-                <div className={`w-24 h-24 rounded-3xl mb-6 flex items-center justify-center border border-white/5 bg-gradient-to-br ${activeTab === 'gemini' ? 'from-blue-500/10 to-purple-500/10 shadow-[0_0_60px_-15px_rgba(59,130,246,0.3)]' : 'from-blue-400/10 to-cyan-400/10 shadow-[0_0_60px_-15px_rgba(56,189,248,0.3)]'}`}>
-                    {activeTab === 'gemini' ? <Sparkles size={48} className="text-blue-400 opacity-80" /> : <MessageSquare size={48} className="text-cyan-400 opacity-80" />}
+                <div className="w-24 h-24 rounded-3xl mb-6 flex items-center justify-center border border-white/5 bg-gradient-to-br from-blue-500/10 to-purple-500/10 shadow-[0_0_60px_-15px_rgba(59,130,246,0.3)]">
+                    <Sparkles size={48} className="text-blue-400 opacity-80" />
                 </div>
                 <h1 className="text-3xl font-bold text-white mb-3 tracking-tight">
-                    {activeTab === 'gemini' ? 'Gemini 智能助手' : '豆包对话'}
+                    Gemini 智能助手
                 </h1>
                 <p className="text-gray-400 max-w-md text-sm leading-relaxed">
-                    {activeTab === 'gemini' 
-                        ? '体验 Gemini 3.0 Pro 的强大能力。支持高级推理、代码编写、多模态分析以及实时联网搜索。'
-                        : '模拟字节跳动豆包大模型接口。提供快速、流畅的中文对话体验。'}
+                    体验 Google Gemini 3.0 Pro / 2.5 Flash 的强大能力。支持高级推理、多模态文件分析、实时代码预览以及联网搜索。
                 </p>
             </div>
         ) : (

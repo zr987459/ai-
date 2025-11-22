@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save, Settings, Monitor, MessageSquare, Volume2, Key, Globe, CheckCircle2, AlertTriangle, Loader2, Cookie } from 'lucide-react';
+import { X, Save, Settings, Monitor, Volume2, Key, Globe, CheckCircle2, AlertTriangle, Loader2, Cookie } from 'lucide-react';
 import { AppSettings } from '../types';
 import { checkGeminiConnectivity } from '../services/geminiService';
 
@@ -12,7 +12,6 @@ interface Props {
 
 const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) => {
   const [formData, setFormData] = useState<AppSettings>(settings);
-  const [activeTab, setActiveTab] = useState<'general' | 'gemini' | 'doubao'>('general');
   const [isChecking, setIsChecking] = useState(false);
   const [checkStatus, setCheckStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
@@ -24,13 +23,22 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
   };
 
   const handleCheckConnectivity = async () => {
-    if (!formData.geminiApiKey) {
+    if (!formData.geminiApiKey && !formData.geminiCookie) {
         setCheckStatus('error');
         return;
     }
+    
     setIsChecking(true);
     setCheckStatus('idle');
-    const success = await checkGeminiConnectivity(formData.geminiApiKey, formData.baseUrl);
+    
+    // Check using the currently selected model to verify specific model availability (e.g. Gemini 3.0)
+    const success = await checkGeminiConnectivity(
+        formData.geminiApiKey, 
+        formData.baseUrl, 
+        formData.geminiCookie,
+        formData.model
+    );
+    
     setCheckStatus(success ? 'success' : 'error');
     setIsChecking(false);
   };
@@ -49,33 +57,101 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-white/5 flex-shrink-0">
-            <button 
-                onClick={() => setActiveTab('general')}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'general' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-900/10' : 'text-gray-400 hover:text-gray-200'}`}
-            >
-                通用
-            </button>
-            <button 
-                onClick={() => setActiveTab('gemini')}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'gemini' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-900/10' : 'text-gray-400 hover:text-gray-200'}`}
-            >
-                Gemini
-            </button>
-            <button 
-                onClick={() => setActiveTab('doubao')}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'doubao' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-900/10' : 'text-gray-400 hover:text-gray-200'}`}
-            >
-                豆包
-            </button>
-        </div>
-
         {/* Content */}
-        <div className="p-6 space-y-5 overflow-y-auto scrollbar-thin flex-1">
+        <div className="p-6 space-y-6 overflow-y-auto scrollbar-thin flex-1">
           
-          {activeTab === 'general' && (
-              <div className="space-y-5 animate-fade-in">
+            {/* Model Settings */}
+            <div className="space-y-4">
+                <h3 className="text-sm font-bold text-gray-300 border-b border-white/5 pb-2">模型配置</h3>
+                <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
+                        <Settings size={14} /> 模型版本
+                    </label>
+                    <select 
+                        value={formData.model}
+                        onChange={e => {
+                            setFormData({...formData, model: e.target.value});
+                            setCheckStatus('idle'); // Reset check when model changes
+                        }}
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    >
+                        <option value="gemini-3-pro-preview">Gemini 3.0 Pro (强推理/需权限)</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (快速/稳定)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
+                        <Key size={14} /> API Key
+                    </label>
+                    <div className="flex gap-2">
+                        <input 
+                            type="password" 
+                            value={formData.geminiApiKey}
+                            onChange={e => {
+                                setFormData({...formData, geminiApiKey: e.target.value});
+                                setCheckStatus('idle');
+                            }}
+                            placeholder={process.env.API_KEY ? "已通过环境变量配置" : "输入 Gemini API Key (或仅使用 Cookie)"}
+                            className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-600"
+                        />
+                        <button 
+                            onClick={handleCheckConnectivity}
+                            disabled={isChecking || (!formData.geminiApiKey && !formData.geminiCookie)}
+                            className={`px-3 py-2 rounded-lg flex items-center justify-center transition-all min-w-[80px] ${
+                                checkStatus === 'success' ? 'bg-green-600 hover:bg-green-500 text-white' :
+                                checkStatus === 'error' ? 'bg-red-600 hover:bg-red-500 text-white' :
+                                'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 border border-blue-500/30'
+                            }`}
+                            title={`检查当前配置对 ${formData.model} 的可用性`}
+                        >
+                            {isChecking ? <Loader2 size={18} className="animate-spin" /> : 
+                             checkStatus === 'success' ? <CheckCircle2 size={18} /> : 
+                             checkStatus === 'error' ? <AlertTriangle size={18} /> :
+                             "检查"}
+                        </button>
+                    </div>
+                    {checkStatus === 'success' && <p className="text-green-400 text-xs mt-1">连接成功 ({formData.model})</p>}
+                    {checkStatus === 'error' && <p className="text-red-400 text-xs mt-1">连接失败，请检查 API Key、Cookie 或配额</p>}
+                </div>
+            </div>
+
+            {/* Advanced Settings */}
+            <div className="space-y-4">
+                <h3 className="text-sm font-bold text-gray-300 border-b border-white/5 pb-2">高级网络配置</h3>
+                 <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
+                        <Globe size={14} /> Base URL (代理地址)
+                    </label>
+                    <input 
+                        type="text" 
+                        value={formData.baseUrl}
+                        onChange={e => setFormData({...formData, baseUrl: e.target.value})}
+                        placeholder="https://generativelanguage.googleapis.com"
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-600"
+                    />
+                    <p className="text-[10px] text-gray-500 mt-1">若使用 Cookie，通常需配置反向代理地址以避免 CORS 错误。</p>
+                 </div>
+                 <div>
+                     <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
+                        <Cookie size={14} /> Google AI Studio Cookie
+                    </label>
+                    <textarea
+                        value={formData.geminiCookie}
+                        onChange={e => {
+                            setFormData({...formData, geminiCookie: e.target.value});
+                            setCheckStatus('idle');
+                        }}
+                        placeholder="粘贴完整的 Cookie 字符串 (用于特定环境或 Gemini 3.0 验证)..."
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-600 min-h-[80px] font-mono text-xs"
+                    />
+                    <p className="text-[10px] text-gray-500 mt-1">可用于绕过 API Key 限制或使用特定账号权限。请确保您的 Base URL 支持转发 Cookie。</p>
+                </div>
+            </div>
+
+            {/* UI Settings */}
+            <div className="space-y-4">
+                <h3 className="text-sm font-bold text-gray-300 border-b border-white/5 pb-2">界面体验</h3>
                  <div>
                     <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
                         <Monitor size={14} /> 字体大小
@@ -104,109 +180,7 @@ const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onSave }) =
                         className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
                     />
                  </div>
-                 <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
-                        <Globe size={14} /> Base URL (可选)
-                    </label>
-                    <input 
-                        type="text" 
-                        value={formData.baseUrl}
-                        onChange={e => setFormData({...formData, baseUrl: e.target.value})}
-                        placeholder="https://..."
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-600"
-                    />
-                    <p className="text-[10px] text-gray-500 mt-1">仅在需要代理时配置，留空则使用默认地址。</p>
-                 </div>
-              </div>
-          )}
-
-          {activeTab === 'gemini' && (
-            <div className="space-y-5 animate-fade-in">
-                <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
-                        <Settings size={14} /> 模型版本
-                    </label>
-                    <select 
-                        value={formData.model}
-                        onChange={e => setFormData({...formData, model: e.target.value})}
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                    >
-                        <option value="gemini-3-pro-preview">Gemini 3.0 Pro</option>
-                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
-                        <Key size={14} /> API Key
-                    </label>
-                    <div className="flex gap-2">
-                        <input 
-                            type="password" 
-                            value={formData.geminiApiKey}
-                            onChange={e => {
-                                setFormData({...formData, geminiApiKey: e.target.value});
-                                setCheckStatus('idle');
-                            }}
-                            placeholder={process.env.API_KEY ? "已通过环境变量配置 (可覆盖)" : "输入 Gemini API Key"}
-                            className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-600"
-                        />
-                        <button 
-                            onClick={handleCheckConnectivity}
-                            disabled={isChecking || !formData.geminiApiKey}
-                            className={`px-3 py-2 rounded-lg flex items-center justify-center transition-all ${
-                                checkStatus === 'success' ? 'bg-green-600 hover:bg-green-500 text-white' :
-                                checkStatus === 'error' ? 'bg-red-600 hover:bg-red-500 text-white' :
-                                'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 border border-blue-500/30'
-                            }`}
-                            title="检查连通性"
-                        >
-                            {isChecking ? <Loader2 size={18} className="animate-spin" /> : 
-                             checkStatus === 'success' ? <CheckCircle2 size={18} /> : 
-                             checkStatus === 'error' ? <AlertTriangle size={18} /> :
-                             "检查"}
-                        </button>
-                    </div>
-                    {checkStatus === 'success' && <p className="text-green-400 text-xs mt-1">连接成功</p>}
-                    {checkStatus === 'error' && <p className="text-red-400 text-xs mt-1">连接失败，请检查 Key 或网络</p>}
-                </div>
-
-                <div>
-                     <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
-                        <Cookie size={14} /> Cookie (可选)
-                    </label>
-                    <textarea
-                        value={formData.geminiCookie}
-                        onChange={e => setFormData({...formData, geminiCookie: e.target.value})}
-                        placeholder="如果使用代理需要 Cookie 验证，请在此粘贴..."
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-600 min-h-[80px]"
-                    />
-                </div>
             </div>
-          )}
-
-          {activeTab === 'doubao' && (
-             <div className="space-y-5 animate-fade-in">
-                <div className="p-3 bg-blue-900/20 border border-blue-500/20 rounded-lg flex gap-2 items-start">
-                    <MessageSquare size={16} className="text-blue-400 mt-0.5 shrink-0" />
-                    <div className="text-xs text-blue-300">
-                        <p className="mb-1">豆包模型仅需要 Cookie 即可使用。</p>
-                        <p className="opacity-70">请在网页版登录豆包后，通过开发者工具获取 Cookie。</p>
-                    </div>
-                </div>
-                <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-2 flex items-center gap-2">
-                        <Cookie size={14} /> Cookie
-                    </label>
-                    <textarea
-                        value={formData.doubaoCookie}
-                        onChange={e => setFormData({...formData, doubaoCookie: e.target.value})}
-                        placeholder="粘贴豆包 Cookie..."
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-600 min-h-[100px]"
-                    />
-                </div>
-             </div>
-          )}
 
         </div>
 
