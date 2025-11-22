@@ -1,3 +1,4 @@
+
 export const MODELS = {
   GEMINI_PRO: 'gemini-3-pro-preview',
   GEMINI_FLASH: 'gemini-2.5-flash',
@@ -9,13 +10,14 @@ export const STORAGE_KEYS = {
   SETTINGS: 'app_settings_v4',
 };
 
-// Google OAuth Configuration
-export const GOOGLE_CLIENT_ID = "547392155908-4kv6u2k3Ww4f1p3c5e7r8t9u0.apps.googleusercontent.com";
+// Default Google OAuth Configuration (Can be overridden in settings)
+export const DEFAULT_GOOGLE_CLIENT_ID = ""; 
 
 export const DEFAULT_SETTINGS = {
   geminiApiKey: '',
   geminiCookie: '',
   accessToken: '',
+  googleClientId: '',
   model: MODELS.GEMINI_FLASH,
   baseUrl: '',
   

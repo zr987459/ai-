@@ -63,17 +63,21 @@ const getClientConfig = (apiKey?: string, baseUrl?: string, cookie?: string, acc
 
 export const checkGeminiConnectivity = async (apiKey: string, baseUrl?: string, cookie?: string, accessToken?: string, model?: string): Promise<boolean> => {
   try {
+    // If specific auth method is provided but empty, skip check or return false
+    // But here we pass all params, the logic is handled inside getClientConfig
+    
     const { client, requestOptions } = getClientConfig(apiKey, baseUrl, cookie, accessToken);
     // Use the selected model for checking, default to flash if not specified
     const targetModel = model || 'gemini-2.5-flash';
     
-    logger.info(`Checking connectivity for model: ${targetModel}`);
+    logger.info(`Checking connectivity for model: ${targetModel} with auth params present.`);
 
     await client.models.generateContent({
       model: targetModel,
       contents: 'Ping',
       config: {
-          responseMimeType: 'text/plain'
+          responseMimeType: 'text/plain',
+          maxOutputTokens: 5
       }
     }, {
         ...requestOptions,

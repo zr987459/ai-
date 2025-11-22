@@ -1,3 +1,4 @@
+
 export enum MessageRole {
   User = 'user',
   Model = 'model',
@@ -40,6 +41,7 @@ export interface AppSettings {
   geminiApiKey: string;
   geminiCookie: string; // Google AI Studio Cookie
   accessToken: string;  // Google OAuth Access Token
+  googleClientId: string; // User provided OAuth Client ID
   model: string;
   baseUrl: string;
   
