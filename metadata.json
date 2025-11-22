@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Copy of Gemini & 豆包双模型对话",
+  "description": "一个高性能的 AI 对话应用，集成了 Google Gemini 和字节跳动豆包模型。具备毛玻璃 UI 风格、Markdown 渲染、联网搜索及语音合成功能。",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
